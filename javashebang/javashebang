@@ -1,0 +1,299 @@
+#!/bin/bash
+#set -x
+set -e
+
+# Some variables
+FLAG_DEBUG=0
+FLAG_FORCE=0
+FLAG_VERBOSE=0
+JSH_SCRIPT_NAME=
+
+# Some functions
+debug() {
+	if [ $FLAG_DEBUG -eq 1 ]
+	then
+		echo "$@"
+	fi 
+}
+
+verbose() {
+	if [ $FLAG_VERBOSE -eq 1 ]
+	then
+		echo "$@"
+	fi 
+}
+
+if [ $# -eq 0 ]
+then
+	echo "Parameters: [-d|-v|-f] [JSH_SCRIPT] [SCRIPT_PARAMS]"
+	exit 1
+fi
+
+debug "Param[0] is '$0'"
+debug "Number of parameters are '$#'"
+debug "Parameters are '$@'"
+if [ $# -eq 1 ]
+then
+	JSH_SCRIPT_NAME=$1
+	shift
+else
+    FIRST=`echo "$1" | cut -b 1`
+    debug "FIRST is '$FIRST'"
+	if [ "$FIRST" = "-" ]
+	then
+        while read BUFFER_FLAG
+        do
+            debug "BUFFER_FLAG is '$BUFFER_FLAG'"
+            if [ "$BUFFER_FLAG" = "-d" ]
+            then
+                debug "set FLAG_DEBUG"
+                FLAG_DEBUG=1
+            elif [ "$BUFFER_FLAG" = "-f" ]
+            then
+                debug "set FLAG_FORCE"
+                FLAG_FORCE=1            
+            elif [ "$BUFFER_FLAG" = "-v" ]
+            then
+                debug "set FLAG_VERBOSE"
+                FLAG_VERBOSE=1    
+            fi
+        done <<EOT
+`echo "$1" | tr [:space:] "\n" | tr [:upper:] [:lower:]`
+EOT
+		shift
+		JSH_SCRIPT_NAME=$1
+	elif [ -f "$1" ]
+	then
+		JSH_SCRIPT_NAME=$1
+    else
+		shift
+		JSH_SCRIPT_NAME=$1
+    fi
+    shift
+fi
+
+debug "FLAG_FORCE is '$FLAG_FORCE'"
+debug "FLAG_DEBUG is '$FLAG_DEBUG'"
+debug "FLAG_VERBOSE is '$FLAG_VERBOSE'"
+
+if [ ! -f "$JSH_SCRIPT_NAME" ]
+then
+	echo "ERROR: Java-Shell-Script '$JSH_SCRIPT_NAME' not found! Stopped."
+	exit 1
+fi
+
+JSC_SCRIPT_EXT=`echo "$JSH_SCRIPT_NAME" | rev | cut -d "." -f 1 | rev`
+
+eval JSH_JAVA_HOME=`cat "$JSH_SCRIPT_NAME" | grep "#JAVA_HOME" | cut -d "=" -f 2`
+eval JSH_JAVA_CLASSPATH=`cat "$JSH_SCRIPT_NAME" | grep "#JAVA_CLASSPATH" | cut -d "=" -f 2`
+JSH_JAVAC_OPTS=`cat "$JSH_SCRIPT_NAME" | grep "#JAVAC_OPTS" | cut -d "=" -f 2`
+JSH_JAVA_OPTS=`cat "$JSH_SCRIPT_NAME" | grep "#JAVA_OPTS" | cut -d "=" -f 2`
+
+JSH_JAVA_DIR_NAME=`dirname "$JSH_SCRIPT_NAME"`
+JSH_JAVA_FILE_NAME=`echo "$JSH_SCRIPT_NAME" | sed "s/.${JSC_SCRIPT_EXT}$/.java/"`
+CLASS_FILE_NAME=`echo "$JSH_SCRIPT_NAME" | sed "s/.${JSC_SCRIPT_EXT}$/.class/"`
+CLASS_NAME=`basename "$JSH_SCRIPT_NAME" | sed "s/.${JSC_SCRIPT_EXT}$//"`
+
+debug "JSC_SCRIPT_EXT is '$JSC_SCRIPT_EXT'"
+debug "JSH_JAVA_HOME is '$JSH_JAVA_HOME'"
+debug "JSH_JAVA_OPTS is '$JSH_JAVA_OPTS'"
+debug "JSH_JAVAC_OPTS is '$JSH_JAVAC_OPTS'"
+debug "JSH_JAVA_CLASSPATH is '$JSH_JAVA_CLASSPATH'"
+debug "JSH_JAVA_DIR_NAME is '$JSH_JAVA_DIR_NAME'"
+debug "JSH_JAVA_FILE_NAME is '$JSH_JAVA_FILE_NAME'"
+debug "CLASS_FILE_NAME is '$CLASS_FILE_NAME'"
+debug "CLASS_NAME is '$CLASS_NAME'"
+
+JSH_JAVAP_CMD="${JSH_JAVA_HOME}/bin/javap"
+JSH_JAVAC_CMD="${JSH_JAVA_HOME}/bin/javac"
+JSH_JAVA_CMD="${JSH_JAVA_HOME}/bin/java"
+debug "JSH_JAVAP_CMD is '$JSH_JAVAP_CMD'"
+debug "JSH_JAVAC_CMD is '$JSH_JAVAC_CMD'"
+debug "JSH_JAVA_CMD is '$JSH_JAVA_CMD'"
+
+JSH_JAVA_VERSION=`$JSH_JAVA_CMD -version 2>&1 | grep version | cut -d '"' -f 2 | cut -d "." -f 1-2`
+debug "JSH_JAVA_VERSION is '$JSH_JAVA_VERSION'"
+
+JSH_JAVA_MAJOR_VERSION=0
+case "$JSH_JAVA_VERSION" in
+
+1.1)
+    JSH_JAVA_MAJOR_VERSION=45
+    ;;
+
+1.2)
+    JSH_JAVA_MAJOR_VERSION=46
+    ;;
+
+1.3)
+    JSH_JAVA_MAJOR_VERSION=47
+    ;;
+
+1.4)
+    JSH_JAVA_MAJOR_VERSION=48
+    ;;
+
+1.5)
+    JSH_JAVA_MAJOR_VERSION=49
+    ;;
+
+1.6)
+    JSH_JAVA_MAJOR_VERSION=50
+    ;;
+
+1.7)
+    JSH_JAVA_MAJOR_VERSION=51
+    ;;
+
+1.8)
+    JSH_JAVA_MAJOR_VERSION=52
+    ;;
+
+# TO BE CHECK if it will be correct
+1.9)
+    JSH_JAVA_MAJOR_VERSION=53
+    ;;
+    
+*)
+    JSH_JAVA_MAJOR_VERSION=0
+    ;;
+
+esac
+debug "JSH_JAVA_MAJOR_VERSION is '$JSH_JAVA_MAJOR_VERSION'"
+
+if [ ! -f ${JSH_JAVAC_CMD} ]
+then
+	echo "ERROR: File '${JSH_JAVAC_CMD}' not found! Stopped."
+	exit 1
+fi
+if [ ! -f ${JSH_JAVA_CMD} ]
+then
+	echo "ERROR: File '${JSH_JAVA_CMD}' not found! Stopped."
+	exit 1
+fi
+
+if [ "$JSH_JAVA_CLASSPATH" != "" ]
+then
+    debug "Check JSH_JAVA_CLASSPATH..."
+	echo "$JSH_JAVA_CLASSPATH" | sed "s/:/\n/g" | while read JAR_FILE
+	do
+		if [ -d "$JAR_FILE" ]
+        then
+            debug "Directory '$JAR_FILE' is valid."
+        elif [  -f "$JAR_FILE" ]
+		then
+            debug "File '$JAR_FILE' is valid."
+        else
+			echo "ERROR: File '$JAR_FILE' not found! Stopped. Check the option '#JSH_JAVA_CLASSPATH'."
+			exit 1
+		fi
+	done
+fi
+
+if [ -f "${JSH_JAVAP_CMD}" -a -f "$CLASS_FILE_NAME" ]
+then
+    CLASS_VERSION=`${JSH_JAVAP_CMD} -version "$CLASS_FILE_NAME" | head -n 1 | cut -d "." -f 1-2`
+    debug "CLASS_VERSION is '$CLASS_VERSION'"
+    
+    if [ "$CLASS_VERSION" = "" ]
+    then
+        debug "CLASS_VERSION is empty! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    elif [ "$JSH_JAVA_VERSION" = "" ]
+    then
+        debug "JSH_JAVA_VERSION is empty! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    elif [ "$CLASS_VERSION" != "$JSH_JAVA_VERSION" ]
+    then
+        debug "Class Version different! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    fi
+    
+    CLASS_MAJOR_VERSION=`${JSH_JAVAP_CMD} -verbose "$CLASS_FILE_NAME" | grep major | cut -d ":" -f 2 | tr -d [:space:]`
+    debug "CLASS_MAJOR_VERSION is '$CLASS_MAJOR_VERSION'"
+    if [ "$CLASS_MAJOR_VERSION" = "" ]
+    then
+        debug "CLASS_MAJOR_VERSION is empty! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    elif [ "$JSH_JAVA_MAJOR_VERSION" = "" ]
+    then
+        debug "JSH_JAVA_MAJOR_VERSION is empty! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    elif [ $CLASS_MAJOR_VERSION -gt $JSH_JAVA_MAJOR_VERSION ]
+    then
+        debug "Class Major Version different! FLAG_FORCE set to 1"
+        FLAG_FORCE=1
+    fi    
+fi
+
+debug "FLAG_FORCE is '$FLAG_FORCE'"
+
+JSH_JAVA_CPATH="-classpath ${JSH_JAVA_DIR_NAME}"
+if [ "$JSH_JAVA_CLASSPATH" != "" ]
+then
+    JSH_JAVA_CPATH="${JSH_JAVA_CPATH}:${JSH_JAVA_CLASSPATH}"
+fi
+debug "JSH_JAVA_CPATH is '$JSH_JAVA_CPATH'"
+
+UPDATE=
+if [ -f "$JSH_JAVA_FILE_NAME" ]
+then
+	UPDATE=`find "$JSH_SCRIPT_NAME" -newer "$JSH_JAVA_FILE_NAME"`
+fi
+
+debug "UPDATE is '$UPDATE'"
+if [ "$UPDATE" != "" -o ! -f "${JSH_JAVA_FILE_NAME}" ]
+then
+	if [ -f "${JSH_JAVA_FILE_NAME}" ]
+	then
+		debug "Deleting '$JSH_JAVA_FILE_NAME'..."
+		rm -f "${JSH_JAVA_FILE_NAME}"
+	fi
+
+	if [ -f "${CLASS_FILE_NAME}" ]
+	then
+		debug "Deleting '$CLASS_FILE_NAME'..."
+		rm -f "${CLASS_FILE_NAME}"
+	fi
+
+	debug "Shell updated. Extract java class..."
+	END_JSH_LINE=`fgrep -n "#END_JSH" "$JSH_SCRIPT_NAME" | cut -d ":" -f 1`
+	debug "END_JSH_LINE is '$END_JSH_LINE'"
+
+	START_JSH_JAVA_FILE=`expr $END_JSH_LINE + 1`
+	debug "START_JSH_JAVA_FILE is '$START_JSH_JAVA_FILE'"
+
+	tail -n +${START_JSH_JAVA_FILE} "$JSH_SCRIPT_NAME" >${JSH_JAVA_FILE_NAME}
+fi
+
+if [ $FLAG_FORCE -eq 1 ]
+then
+	if [ -f "${CLASS_FILE_NAME}" ]
+	then
+		debug "Deleting '$CLASS_FILE_NAME'..."
+		rm -f "${CLASS_FILE_NAME}"
+	fi
+fi
+
+if [ ! -f "${CLASS_FILE_NAME}" ]
+then
+	debug "Compiling '$JSH_JAVA_FILE_NAME'..."
+	${JSH_JAVAC_CMD} ${JSH_JAVAC_OPTS} ${JSH_JAVA_CPATH} "$JSH_JAVA_FILE_NAME"
+	RET_CODE=$?
+	if [ $RET_CODE -ne 0 ]
+	then
+		verbose "ERROR: javac return error code $RET_CODE! Stopped."
+		exit 1
+	fi
+fi
+
+set +e
+${JSH_JAVA_CMD} ${JSH_JAVA_OPTS} ${JSH_JAVA_CPATH} ${CLASS_NAME} "$@"
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]
+then
+	verbose "ERROR: java return error code $RET_CODE! Stopped."
+	exit 1
+fi
+
+exit 0
