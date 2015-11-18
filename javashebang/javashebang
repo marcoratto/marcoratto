@@ -190,26 +190,16 @@ then
 	done
 fi
 
-if [ -f "${JSH_JAVAP_CMD}" -a -f "$CLASS_FILE_NAME" ]
+JSH_JAVA_CPATH="-classpath ${JSH_JAVA_DIR_NAME}"
+if [ "$JSH_JAVA_CLASSPATH" != "" ]
 then
-    CLASS_VERSION=`${JSH_JAVAP_CMD} -version "$CLASS_FILE_NAME" | head -n 1 | cut -d "." -f 1-2`
-    debug "CLASS_VERSION is '$CLASS_VERSION'"
-    
-    if [ "$CLASS_VERSION" = "" ]
-    then
-        debug "CLASS_VERSION is empty! FLAG_FORCE set to 1"
-        FLAG_FORCE=1
-    elif [ "$JSH_JAVA_VERSION" = "" ]
-    then
-        debug "JSH_JAVA_VERSION is empty! FLAG_FORCE set to 1"
-        FLAG_FORCE=1
-    elif [ "$CLASS_VERSION" != "$JSH_JAVA_VERSION" ]
-    then
-        debug "Class Version different! FLAG_FORCE set to 1"
-        FLAG_FORCE=1
-    fi
-    
-    CLASS_MAJOR_VERSION=`${JSH_JAVAP_CMD} -verbose "$CLASS_FILE_NAME" | grep major | cut -d ":" -f 2 | tr -d [:space:]`
+    JSH_JAVA_CPATH="${JSH_JAVA_CPATH}:${JSH_JAVA_CLASSPATH}"
+fi
+debug "JSH_JAVA_CPATH is '$JSH_JAVA_CPATH'"
+
+if [ -f "${JSH_JAVAP_CMD}" -a -f "$CLASS_FILE_NAME" ]
+then   
+    CLASS_MAJOR_VERSION=`${JSH_JAVAP_CMD} ${JSH_JAVA_CPATH} -verbose ${CLASS_NAME} | grep major | cut -d ":" -f 2 | tr -d [:space:]`
     debug "CLASS_MAJOR_VERSION is '$CLASS_MAJOR_VERSION'"
     if [ "$CLASS_MAJOR_VERSION" = "" ]
     then
@@ -227,13 +217,6 @@ then
 fi
 
 debug "FLAG_FORCE is '$FLAG_FORCE'"
-
-JSH_JAVA_CPATH="-classpath ${JSH_JAVA_DIR_NAME}"
-if [ "$JSH_JAVA_CLASSPATH" != "" ]
-then
-    JSH_JAVA_CPATH="${JSH_JAVA_CPATH}:${JSH_JAVA_CLASSPATH}"
-fi
-debug "JSH_JAVA_CPATH is '$JSH_JAVA_CPATH'"
 
 UPDATE=
 if [ -f "$JSH_JAVA_FILE_NAME" ]
@@ -297,3 +280,4 @@ then
 fi
 
 exit 0
+
