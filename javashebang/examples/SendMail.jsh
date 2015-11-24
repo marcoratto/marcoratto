@@ -1,4 +1,4 @@
-#!/home/rattom/bin/javashebang 
+#!/usr/bin/javashebang 
 #START_JSH
 #JAVA_HOME=${JAVA_HOME}
 #JAVA_CLASSPATH=${JAVA_LIBS_DIR}/javamail-1.5.4/gimap-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/smtp-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/logging-mailhandler-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/javax.mail-api-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/mailapi-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/dsn-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/imap-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/pop3-1.5.4.jar:${JAVA_LIBS_DIR}/javamail-1.5.4/javax.mail.jar

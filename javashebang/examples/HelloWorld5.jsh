@@ -1,4 +1,4 @@
-#!/home/rattom/bin/javashebang -d
+#!/usr/bin/javashebang  -d
 #START_JSH
 #JAVA_HOME=/opt/java
 #JAVA_CLASSPATH=/opt/MQJExplorer/lib/log4j/log4j-1.2.15.jar

@@ -1,4 +1,4 @@
-#!/home/rattom/bin/javashebang -f
+#!/usr/bin/javashebang  -f
 #START_JSH
 #JAVA_HOME=/opt/java
 #JAVA_OPTS=-Xms32m -Xmx64m

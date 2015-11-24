@@ -1,4 +1,4 @@
-#!/home/rattom/bin/javashebang 
+#!/usr/bin/javashebang  
 #START_JSH
 #JAVA_HOME=/opt/java
 #JAVA_CLASSPATH=/opt/java_libs/apache-log4j-1.2.16/log4j-1.2.16.jar
